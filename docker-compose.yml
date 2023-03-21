@@ -1,0 +1,9 @@
+version: "3.9"
+
+services:
+  gpt4u-frontend: # name of first service
+    build: .
+    ports:
+      - 8501:8501
+    volumes:
+        - ${PATH_TO_LOCAL_CWD}:/app/
