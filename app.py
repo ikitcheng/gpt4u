@@ -33,16 +33,22 @@ def construct_index(directory_path):
 
 def ask_ai():
     index = GPTSimpleVectorIndex.load_from_disk('/app/index.json')
-    while True: 
+    while True:
         cols = st.columns(2)
         query = cols[0].text_input("What do you want to ask? ")
         response = index.query(query, response_mode="compact")
         st.write(f"Response: <b>{response.response}</b>")
+        
+        if st.button("Stop"): 
+            # delete the saved files
+            files = os.listdir('/app/context_data/')
+            for f in files:
+                os.remove(f)
 
-def save_uploadedfile(uploadedfile):
-     with open(os.path.join("/app/context_data/",uploadedfile.name),"wb") as f:
-         f.write(uploadedfile.getbuffer())
-     return st.success(f"Saved File:{uploadedfile.name} to /app/context_data/")
+def save_uploadedfile(uploadedfile, outpath):
+    with open(os.path.join(outpath, uploadedfile.name),"wb") as f:
+        f.write(uploadedfile.getbuffer())
+    return st.success(f"Saved File: {uploadedfile.name} to {outpath}")
 
 def main():
     st.title("GPT-4-U")
@@ -52,25 +58,34 @@ def main():
     if cols[0].button("Submit"):
         os.environ["OPENAI_API_KEY"] = openai_api_key
 
-    uploaded_files = cols[0].file_uploader("Upload files to index:", type=None, accept_multiple_files=True)
+    uploaded_files = cols[0].file_uploader("Upload custom files (`.txt`, `.tex`, ...) or existing `index.json`",
+                                            type=None, accept_multiple_files=True)
 
-    if uploaded_files is not None:
+    if len(uploaded_files) > 0:
         for file in uploaded_files:
-            # save file to context_data
-            save_uploadedfile(file)
+            # save custom files to `context_data`
+            if '.json' not in file.name: 
+                save_uploadedfile(file, outpath='/app/context_data/')
+            elif '.json' in file.name:
+                save_uploadedfile(file, outpath='/app/')
 
-    
+        
+        if not os.path.isfile('/app/index.json'): 
+            st.info('Creating `index.json`...', icon="ℹ️")
+            llamaindex = construct_index("/app/context_data/")
+            st.success("Your data has been indexed successfully!", icon="✅")
+            st.download_button(
+                label="Download index as .json",
+                data=file,
+                file_name='index.json',
+                mime='text/plain',
+                )
+
     if cols[0].button("Chat"):
         main2()
 
 def main2():
-    llamaindex = construct_index("/app/context_data/")
-
-    st.success("Your data has been indexed and ready to use!")
-
     st.write("Ask GPT-4-U your questions in the chat box below:")
-
-    #while not st.button("Stop"):   
     ask_ai()
 
 # setup page
